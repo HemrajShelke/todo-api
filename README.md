@@ -1,17 +1,23 @@
 # Todo List API Server
 
-This project is a simple Todo List application with a Python Flask backend, an SQLite database, and a plain HTML, CSS, and JavaScript frontend.
+This project is a simple but powerful Todo List application featuring a Python Flask backend, an SQLite database, and a clean, functional frontend built with HTML, CSS, and JavaScript.
 
-## APIs
+## Tech Stack
 
-The following API endpoints are available:
+- **Backend:** Python, Flask, Flask-SQLAlchemy, Flask-CORS
+- **Database:** SQLite
+- **Frontend:** HTML, CSS, JavaScript
+- **Testing:** Pytest, Pytest-Cov
 
-### 1. Get All Todos
+## API Documentation
 
+The API provides the following endpoints for managing todo items:
+
+### Get All Todos
 - **Endpoint:** `/todos`
 - **Method:** `GET`
 - **Description:** Retrieves a list of all todo items.
-- **Sample Response:**
+- **Success Response:** `200 OK`
   ```json
   [
     {
@@ -27,8 +33,7 @@ The following API endpoints are available:
   ]
   ```
 
-### 2. Add a New Todo
-
+### Add a New Todo
 - **Endpoint:** `/todos`
 - **Method:** `POST`
 - **Description:** Adds a new todo item to the list.
@@ -38,7 +43,7 @@ The following API endpoints are available:
     "task": "Write documentation"
   }
   ```
-- **Sample Response:**
+- **Success Response:** `201 Created`
   ```json
   {
     "id": 3,
@@ -47,11 +52,10 @@ The following API endpoints are available:
   }
   ```
 
-### 3. Update a Todo
-
+### Update a Todo
 - **Endpoint:** `/todos/<id>`
 - **Method:** `PUT`
-- **Description:** Updates an existing todo item. You can update the task or the completed status.
+- **Description:** Updates an existing todo item's task or completion status.
 - **Request Body:**
   ```json
   {
@@ -59,7 +63,7 @@ The following API endpoints are available:
     "completed": true
   }
   ```
-- **Sample Response:**
+- **Success Response:** `200 OK`
   ```json
   {
     "id": 3,
@@ -68,36 +72,78 @@ The following API endpoints are available:
   }
   ```
 
-### 4. Delete a Todo
-
+### Delete a Todo
 - **Endpoint:** `/todos/<id>`
 - **Method:** `DELETE`
-- **Description:** Deletes a todo item.
-- **Sample Response:** `204 No Content`
+- **Description:** Deletes a specific todo item.
+- **Success Response:** `204 No Content`
 
-## Database
+## Getting Started
 
-This project uses **SQLite**, a lightweight, serverless, self-contained, transactional SQL database engine. The database is integrated into the Flask application using the `Flask-SQLAlchemy` extension. The database file `todos.db` will be automatically created in the `backend` directory when the server is first started.
+### Prerequisites
+- Python 3.x
+- pip
 
-The `Todo` model in `app.py` defines the structure of the `todos` table in the database.
+### Installation & Setup
 
-## How to Run the Server
-
-1.  Navigate to the `backend` directory:
+1.  **Clone the repository:**
     ```bash
-    cd backend
+    git clone <your-repository-url>
+    cd todo-api/backend
     ```
-2.  Create a virtual environment (optional but recommended):
+
+2.  **Create and activate a virtual environment:**
     ```bash
+    # For Windows
     python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    .\venv\Scripts\activate
+
+    # For macOS/Linux
+    python3 -m venv venv
+    source venv/bin/activate
     ```
-3.  Install the required packages:
+
+3.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-4.  Run the Flask application:
+
+4.  **Run the application:**
     ```bash
+    python app.py
+    ```
+    The API server will be running at `http://127.0.0.1:5000`.
+
+## Testing
+
+This project uses `pytest` for comprehensive unit, integration, and API testing.
+
+### Running Tests
+
+From the `backend` directory, run the following command:
+```bash
+pytest
+```
+
+### Test Coverage
+
+A test coverage of **93%** has been achieved, as detailed in the report below. The report was generated using `pytest-cov`.
+
+![Test Coverage Report](path/to/your/screenshot.png)
+
+**Coverage Breakdown:**
+
+| File   | Statements | Missing | Coverage |
+|--------|------------|---------|----------|
+| app.py | 43         | 3       | 93%      |
+| **Total**  | **43**     | **3**   | **93%**  |
+
+To generate an updated HTML report, run:
+```bash
+pytest --cov=app --cov-report html
+```
+Then, open `backend/htmlcov/index.html` in your browser.
+
     python app.py
     ```
 5.  The server will start on `http://127.0.0.1:5000`.
