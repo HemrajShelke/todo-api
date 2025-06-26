@@ -7,7 +7,7 @@ This project is a simple but powerful Todo List application featuring a Python F
 - **Backend:** Python, Flask, Flask-SQLAlchemy, Flask-CORS
 - **Database:** SQLite
 - **Frontend:** HTML, CSS, JavaScript
-- **Testing:** Pytest, Pytest-Cov
+- **Testing:** Pytest, Pytest-Cov, Keploy
 
 ## API Documentation
 
@@ -78,6 +78,20 @@ The API provides the following endpoints for managing todo items:
 - **Description:** Deletes a specific todo item.
 - **Success Response:** `204 No Content`
 
+## API Testing with Keploy
+
+We use [Keploy](https://keploy.io) for API testing. To run tests:
+
+1. Install Keploy from [official instructions](https://keploy.io/docs/installation/)
+2. Record tests: `./run_with_keploy_record.ps1`
+3. Run tests: `./run_with_keploy_test.ps1`
+
+### CI/CD Integration
+
+We've integrated Keploy tests into our GitHub Actions workflow. View the test reports in the Actions tab.
+
+![Keploy Test Report](link-to-screenshot)
+
 ## Getting Started
 
 ### Prerequisites
@@ -129,7 +143,7 @@ pytest
 
 A test coverage of **93%** has been achieved, as detailed in the report below. The report was generated using `pytest-cov`.
 
-![Test Coverage Report](path/to/your/screenshot.png)
+![Test Coverage Report](assets/coverage.png)
 
 **Coverage Breakdown:**
 

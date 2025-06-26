@@ -1,0 +1,17 @@
+openapi: 3.0.0
+info:
+  title: TODO API
+  version: 1.0.0
+paths:
+  /todos:
+    get:
+      summary: Get all TODOs
+    post:
+      summary: Create a new TODO
+  /todos/{id}:
+    get:
+      summary: Get a TODO by ID
+    put:
+      summary: Update a TODO
+    delete:
+      summary: Delete a TODO
