@@ -9,7 +9,8 @@ on:
 
 env:
   PYTHON_VERSION: '3.11'
-  DOCKER_BUILDKIT: 1
+  FLASK_ENV: testing
+  FLASK_APP: app.py
 
 jobs:
   test:
@@ -31,19 +32,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r backend/requirements.txt
         pip install pytest pytest-cov requests
-        
-    - name: Set up Docker Compose
+
+    - name: Start Flask server
       run: |
-        sudo apt-get update
-        sudo apt-get install -y docker-compose-plugin
-        docker compose version
-        
-    - name: Build and start services
-      run: |
-        docker compose build
-        docker compose up -d todo-api
-        sleep 15  # Wait for services to be ready
-        
+        cd backend
+        mkdir -p instance
+        python app.py &
+        sleep 10  # Wait for server to start
+        curl http://localhost:5000/todos || exit 1
+
     - name: Run API tests
       run: |
         python test_api_with_keploy.py || true  # Continue even if some tests fail
@@ -52,15 +49,6 @@ jobs:
       run: |
         cd backend
         pytest tests/ --cov=. --cov-report=html --cov-report=xml
-        
-    - name: Run Keploy Test Suite
-      if: env.KEPLOY_API_KEY != ''
-      env:
-        KEPLOY_API_KEY: ${{ secrets.KEPLOY_API_KEY }}
-      run: |
-        if [ ! -z "$KEPLOY_API_KEY" ]; then
-          echo "⚠️ Skipping Keploy cloud tests - API key not configured"
-        fi
 
     - name: Generate test report
       if: always()
@@ -103,14 +91,8 @@ jobs:
         echo "=========================="
         echo "✅ Code checkout completed"
         echo "✅ Python environment setup"
-        echo "✅ Docker environment setup"
         echo "✅ API tests executed"
         echo "✅ Unit tests executed"
-        if [ ! -z "$KEPLOY_API_KEY" ]; then
-          echo "✅ Keploy cloud tests executed"
-        else
-          echo "⚠️ Keploy cloud tests skipped - API key not configured"
-        fi
         echo ""
         echo "📈 Test results uploaded"
         echo "🔗 Check artifacts for detailed reports"
@@ -124,22 +106,20 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Set up Docker Compose
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y docker-compose-plugin
-        docker compose version
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
       
     - name: Build production image
-      run: docker compose build todo-api
-      
+      run: |
+        docker build -t todo-api:prod .
+        
     - name: Run smoke tests
       run: |
-        docker compose up -d todo-api
+        docker run -d --name todo-api-prod -p 5000:5000 todo-api:prod
         sleep 15  # Give more time for container to start
-        curl -f http://localhost:5000/todos || { echo "Smoke test failed"; docker compose logs todo-api; exit 1; }
-        docker compose down
+        curl -f http://localhost:5000/todos || { echo "Smoke test failed"; docker logs todo-api-prod; exit 1; }
+        docker stop todo-api-prod
         
     - name: Deploy summary
       if: always()
