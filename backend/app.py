@@ -132,12 +132,12 @@ def init_db():
     with app.app_context():
         app.logger.info('Initializing database')
         db.create_all()
-        # Add a test todo if none exist
-        if not Todo.query.first():
+        # Add a test todo only in development environment
+        if os.environ.get('FLASK_ENV') == 'development' and not Todo.query.first():
             test_todo = Todo(task="Test todo", completed=False)
             db.session.add(test_todo)
             db.session.commit()
-            app.logger.info('Added test todo')
+            app.logger.info('Added test todo in development environment')
 
 if __name__ == '__main__':
     # Ensure instance path exists
