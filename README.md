@@ -27,21 +27,6 @@ A full-stack Todo List application with a Flask backend and modern frontend, fea
 ### API Test Results
 ![API Test Results](assets/API_test.png)
 
-### Keploy Test Report
-The Keploy test suite includes various test cases to ensure API reliability and correctness:
-- Idempotent PUT operations
-- Update operations with various input validations
-- Delete operation verification
-- Task completion status updates
-
-![Keploy Test Report](https://app.keploy.io/api-testing/tr/5dad18ec-f3dc-400a-8391-1b2a8474e5e7?suiteld=e75400b7-6c00-44bb-bd9d-1ec1c11d0468)
-
-- **CI/CD**
-  - GitHub Actions workflows
-  - Automated testing
-  - Build and deployment stages
-  - Artifact collection
-  - Test reporting
 
 ## API Endpoints
 
