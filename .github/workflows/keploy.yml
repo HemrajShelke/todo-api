@@ -24,12 +24,19 @@ jobs:
 
       - name: Set up Docker Desktop
         uses: docker/setup-buildx-action@v3
+        with:
+          platforms: windows/amd64
+
+      - name: Switch to Windows containers
+        run: |
+          Write-Host "🔄 Switching to Windows containers..."
+          & $Env:ProgramFiles\Docker\Docker\DockerCli.exe -SwitchDaemon
 
       - name: Build and start containers
         shell: pwsh
         run: |
           Write-Host "🏗️ Building containers..."
-          docker-compose build
+          docker-compose build --no-cache
           docker-compose up -d todo-api
           Write-Host "⏳ Waiting for services to be ready..."
           Start-Sleep -Seconds 30

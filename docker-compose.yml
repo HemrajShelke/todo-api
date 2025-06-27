@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   todo-api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platform: windows/amd64
     ports:
       - "5000:5000"
     environment:
@@ -23,6 +26,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+      platform: windows/amd64
     environment:
       - FLASK_ENV=testing
       - PYTHONPATH=/app
