@@ -10,7 +10,8 @@ on:
 env:
   PYTHON_VERSION: '3.11'
   FLASK_ENV: testing
-  FLASK_APP: app.py
+  FLASK_APP: backend/app.py
+  PORT: 5000
 
 jobs:
   test:
@@ -35,11 +36,28 @@ jobs:
 
     - name: Start Flask server
       run: |
+        # Ensure instance directory exists
+        mkdir -p backend/instance
+        
+        # Start Flask server in background
         cd backend
-        mkdir -p instance
         python app.py &
-        sleep 10  # Wait for server to start
-        curl http://localhost:5000/todos || exit 1
+        echo $! > flask.pid
+        
+        # Wait for server to be ready
+        echo "Waiting for Flask server to be ready..."
+        for i in {1..30}; do
+          if curl -s http://localhost:$PORT/health > /dev/null; then
+            echo "Flask server is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Flask server failed to start"
+            cat flask.pid | xargs kill -9
+            exit 1
+          fi
+          sleep 1
+        done
 
     - name: Run API tests
       run: |
@@ -49,6 +67,13 @@ jobs:
       run: |
         cd backend
         pytest tests/ --cov=. --cov-report=html --cov-report=xml
+
+    - name: Stop Flask server
+      if: always()
+      run: |
+        if [ -f backend/flask.pid ]; then
+          cat backend/flask.pid | xargs kill -9 || true
+        fi
 
     - name: Generate test report
       if: always()
@@ -116,9 +141,26 @@ jobs:
         
     - name: Run smoke tests
       run: |
-        docker run -d --name todo-api-prod -p 5000:5000 todo-api:prod
-        sleep 15  # Give more time for container to start
-        curl -f http://localhost:5000/todos || { echo "Smoke test failed"; docker logs todo-api-prod; exit 1; }
+        docker run -d --name todo-api-prod -p $PORT:$PORT todo-api:prod
+        
+        # Wait for container to be ready
+        echo "Waiting for container to be ready..."
+        for i in {1..30}; do
+          if curl -s http://localhost:$PORT/health > /dev/null; then
+            echo "Container is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Container failed to start"
+            docker logs todo-api-prod
+            docker stop todo-api-prod
+            exit 1
+          fi
+          sleep 1
+        done
+        
+        # Run actual smoke test
+        curl -f http://localhost:$PORT/todos || { echo "Smoke test failed"; docker logs todo-api-prod; docker stop todo-api-prod; exit 1; }
         docker stop todo-api-prod
         
     - name: Deploy summary

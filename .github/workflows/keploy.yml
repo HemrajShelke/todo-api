@@ -10,7 +10,8 @@ on:
 env:
   PYTHON_VERSION: '3.11'
   FLASK_ENV: testing
-  FLASK_APP: app.py
+  FLASK_APP: backend/app.py
+  PORT: 5000
 
 jobs:
   api-test:
@@ -34,11 +35,28 @@ jobs:
 
     - name: Start Flask server
       run: |
+        # Ensure instance directory exists
+        mkdir -p backend/instance
+        
+        # Start Flask server in background
         cd backend
-        mkdir -p instance
         python app.py &
-        sleep 10  # Wait for server to start
-        curl http://localhost:5000/todos || exit 1
+        echo $! > flask.pid
+        
+        # Wait for server to be ready
+        echo "Waiting for Flask server to be ready..."
+        for i in {1..30}; do
+          if curl -s http://localhost:$PORT/health > /dev/null; then
+            echo "Flask server is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Flask server failed to start"
+            cat flask.pid | xargs kill -9
+            exit 1
+          fi
+          sleep 1
+        done
 
     - name: Run API Tests
       run: |
@@ -48,6 +66,13 @@ jobs:
       run: |
         cd backend
         pytest tests/ --cov=. --cov-report=html --cov-report=xml
+
+    - name: Stop Flask server
+      if: always()
+      run: |
+        if [ -f backend/flask.pid ]; then
+          cat backend/flask.pid | xargs kill -9 || true
+        fi
 
     - name: Upload test results
       if: always()
@@ -81,7 +106,3 @@ jobs:
         else
           echo "No coverage report found" >> $GITHUB_STEP_SUMMARY
         fi
-
-    - name: Cleanup
-      if: always()
-      run: docker compose down

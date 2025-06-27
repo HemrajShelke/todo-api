@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -67,7 +68,32 @@ def delete_todo(id):
     db.session.commit()
     return '', 204
 
-if __name__ == '__main__':
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
+def init_db():
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+        # Add a test todo if none exist
+        if not Todo.query.first():
+            test_todo = Todo(task="Test todo", completed=False)
+            db.session.add(test_todo)
+            db.session.commit()
+
+if __name__ == '__main__':
+    # Ensure instance path exists
+    os.makedirs(app.instance_path, exist_ok=True)
+    
+    # Initialize database
+    init_db()
+    
+    # Get port from environment or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Run app
+    app.run(
+        host='0.0.0.0',  # Bind to all interfaces
+        port=port,
+        debug=os.environ.get('FLASK_ENV') == 'development'
+    )
