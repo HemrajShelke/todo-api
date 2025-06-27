@@ -12,6 +12,7 @@ env:
   FLASK_ENV: testing
   FLASK_APP: backend/app.py
   PORT: 5000
+  API_URL: http://localhost:5000
 
 jobs:
   api-test:
@@ -37,6 +38,7 @@ jobs:
       run: |
         # Ensure instance directory exists
         mkdir -p backend/instance
+        mkdir -p backend/instance/logs
         
         # Start Flask server in background
         cd backend
@@ -52,15 +54,31 @@ jobs:
           fi
           if [ $i -eq 30 ]; then
             echo "Flask server failed to start"
-            cat flask.pid | xargs kill -9
+            echo "Server logs:"
+            cat instance/logs/flask.log || true
+            cat flask.pid | xargs kill -9 || true
             exit 1
           fi
-          sleep 1
+          sleep 2
         done
+        cd ..
 
     - name: Run API Tests
       run: |
-        python test_api_with_keploy.py || true  # Continue even if some tests fail
+        # Run API tests and capture output
+        python test_api_with_keploy.py 2>&1 | tee api_test.log
+        
+        # Check if test results file exists and contains failures
+        if [ -f "test_results.json" ]; then
+          failed_count=$(jq '.failed' test_results.json)
+          if [ "$failed_count" -gt 0 ]; then
+            echo "API tests had $failed_count failures"
+            exit 1
+          fi
+        else
+          echo "No test results file found"
+          exit 1
+        fi
 
     - name: Run Unit Tests with Coverage
       run: |
@@ -82,7 +100,9 @@ jobs:
         path: |
           backend/htmlcov/
           backend/coverage.xml
-          keploy-logs.txt
+          api_test.log
+          test_results.json
+          backend/instance/logs/
         retention-days: 7
         if-no-files-found: warn
 
@@ -91,12 +111,16 @@ jobs:
       run: |
         echo "## API Test Results 📊" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Keploy Test Summary" >> $GITHUB_STEP_SUMMARY
-        if [ -f "keploy-logs.txt" ]; then
-          cat keploy-logs.txt | grep -E "INFO: Total tests|SUCCESS: Passed|ERROR: Failed" >> $GITHUB_STEP_SUMMARY || true
+        
+        echo "### API Test Summary" >> $GITHUB_STEP_SUMMARY
+        if [ -f "test_results.json" ]; then
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat test_results.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         else
-          echo "No Keploy logs found" >> $GITHUB_STEP_SUMMARY
+          echo "No API test results found" >> $GITHUB_STEP_SUMMARY
         fi
+        
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Coverage Report" >> $GITHUB_STEP_SUMMARY
         if [ -f "backend/coverage.xml" ]; then
@@ -105,4 +129,14 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         else
           echo "No coverage report found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Server Logs" >> $GITHUB_STEP_SUMMARY
+        if [ -f "backend/instance/logs/flask.log" ]; then
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          tail -n 50 backend/instance/logs/flask.log >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No server logs found" >> $GITHUB_STEP_SUMMARY
         fi
