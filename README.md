@@ -25,7 +25,7 @@ A full-stack Todo List application with a Flask backend and modern frontend, fea
   - Test result reporting
 
 ### API Test Results
-![API Test Results](assets/API_test)
+![API Test Results](assets/API_test.png)
 
 - **CI/CD**
   - GitHub Actions workflows
