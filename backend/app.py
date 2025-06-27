@@ -29,9 +29,23 @@ def get_todos():
     todos = Todo.query.all()
     return jsonify([todo.to_dict() for todo in todos])
 
+@app.route('/todos/<int:id>', methods=['GET'])
+def get_todo(id):
+    todo = Todo.query.get_or_404(id)
+    return jsonify(todo.to_dict())
+
 @app.route('/todos', methods=['POST'])
 def add_todo():
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    
+    if 'task' not in data:
+        return jsonify({"error": "Task field is required"}), 400
+        
+    if not isinstance(data['task'], str) or not data['task'].strip():
+        return jsonify({"error": "Task must be a non-empty string"}), 400
+        
     new_todo = Todo(task=data['task'], completed=data.get('completed', False))
     db.session.add(new_todo)
     db.session.commit()

@@ -1,17 +1,243 @@
 openapi: 3.0.0
 info:
-  title: TODO API
+  title: Todo List API
+  description: |
+    A RESTful API for managing todo items. This API allows you to:
+    * Create new todo items
+    * List all todos
+    * Get specific todo details
+    * Update existing todos
+    * Delete todos
+    
+    All endpoints return JSON responses and accept JSON for POST/PUT requests.
   version: 1.0.0
+  contact:
+    name: API Support
+    email: support@todoapi.com
+    url: https://github.com/yourusername/todo-api
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://127.0.0.1:5000
+    description: Development server
+  - url: https://todo-api.example.com
+    description: Production server
+
+tags:
+  - name: todos
+    description: Operations for managing todo items
+
 paths:
   /todos:
     get:
-      summary: Get all TODOs
+      summary: List all todos
+      description: Retrieve a list of all todo items
+      operationId: getTodos
+      tags:
+        - todos
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Todo'
+              example:
+                - id: 1
+                  task: "Learn OpenAPI"
+                  completed: true
+                - id: 2
+                  task: "Build REST API"
+                  completed: false
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     post:
-      summary: Create a new TODO
+      summary: Create a new todo
+      description: Add a new todo item to the list
+      operationId: createTodo
+      tags:
+        - todos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoInput'
+            example:
+              task: "New task"
+              completed: false
+      responses:
+        '201':
+          description: Todo created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /todos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID of the todo item
+        schema:
+          type: integer
+          minimum: 1
+        example: 1
+
     get:
-      summary: Get a TODO by ID
+      summary: Get a specific todo
+      description: Retrieve a specific todo item by ID
+      operationId: getTodoById
+      tags:
+        - todos
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     put:
-      summary: Update a TODO
+      summary: Update a todo
+      description: Update an existing todo item
+      operationId: updateTodo
+      tags:
+        - todos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdate'
+      responses:
+        '200':
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
     delete:
-      summary: Delete a TODO
+      summary: Delete a todo
+      description: Delete a specific todo item
+      operationId: deleteTodo
+      tags:
+        - todos
+      responses:
+        '204':
+          description: Todo deleted successfully
+        '404':
+          description: Todo not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Todo:
+      type: object
+      required:
+        - id
+        - task
+        - completed
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the todo item
+          example: 1
+        task:
+          type: string
+          description: The task description
+          maxLength: 200
+          example: "Learn OpenAPI"
+        completed:
+          type: boolean
+          description: Whether the task is completed
+          example: false
+
+    TodoInput:
+      type: object
+      required:
+        - task
+      properties:
+        task:
+          type: string
+          description: The task description
+          maxLength: 200
+          example: "New task"
+        completed:
+          type: boolean
+          description: Whether the task is completed
+          default: false
+          example: false
+
+    TodoUpdate:
+      type: object
+      properties:
+        task:
+          type: string
+          description: The task description
+          maxLength: 200
+          example: "Updated task"
+        completed:
+          type: boolean
+          description: Whether the task is completed
+          example: true
+
+    Error:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Todo not found"
+        code:
+          type: string
+          description: Error code for programmatic handling
+          example: "RESOURCE_NOT_FOUND"
+        details:
+          type: object
+          description: Additional error details
+          example:
+            resource: "todo"
+            id: "123"
+            reason: "The requested todo item does not exist"

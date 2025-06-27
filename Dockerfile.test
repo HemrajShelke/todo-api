@@ -1,54 +1,25 @@
-# Use Windows Server Core as base
-FROM mcr.microsoft.com/windows/servercore:ltsc2022
+FROM python:3.11-slim
 
-# Set working directory
-WORKDIR C:\\app
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV FLASK_ENV=testing
-
-# Install Python and pip
-RUN powershell -Command \
-    $ErrorActionPreference = 'Stop'; \
-    Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.11.0/python-3.11.0-amd64.exe -OutFile python-3.11.0-amd64.exe ; \
-    Start-Process python-3.11.0-amd64.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait ; \
-    Remove-Item python-3.11.0-amd64.exe
+WORKDIR /app
 
 # Install system dependencies
-RUN powershell -Command \
-    Set-ExecutionPolicy Bypass -Scope Process -Force; \
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    Invoke-WebRequest -Uri https://chocolatey.org/install.ps1 -UseBasicParsing | Invoke-Expression; \
-    choco install -y curl wget
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements first to leverage Docker cache
 COPY backend/requirements.txt .
-
-# Install Python dependencies including test dependencies
-RUN python -m pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir pytest pytest-cov pytest-xdist requests
-
-# Install Keploy using PowerShell
-RUN powershell -Command \
-    Invoke-WebRequest -Uri https://raw.githubusercontent.com/keploy/keploy/main/keploy.ps1 -OutFile keploy.ps1; \
-    ./keploy.ps1
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy test files
 COPY backend/ .
-COPY test_api_with_keploy.py .
+RUN mkdir -p test_results
 
-# Create test results directory
-RUN mkdir C:\\app\\test_results
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=testing
+ENV PYTHONUNBUFFERED=1
 
-# Create non-root user
-RUN net user /add appuser && \
-    icacls "C:\\app" /grant "appuser:(OI)(CI)F"
-
-# Set user
-USER appuser
-
-# Default command to run tests
-CMD ["python", "-m", "pytest", "-v", "--cov=.", "--cov-report=html:C:\\app\\test_results\\coverage", "--cov-report=xml:C:\\app\\test_results\\coverage.xml", "-n", "auto", "tests/"] 
+# Run tests
+CMD ["pytest", "--cov=app", "--cov-report=html:test_results/coverage", "--cov-report=xml:test_results/coverage.xml", "--junitxml=test_results/junit.xml"] 

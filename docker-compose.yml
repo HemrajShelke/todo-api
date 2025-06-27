@@ -5,51 +5,51 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      platform: windows/amd64
     ports:
       - "5000:5000"
-    environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
     volumes:
       - ./backend:/app
-      - todo-db:/app/instance
+      - todo-data:/app/instance
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/todos"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    restart: unless-stopped
+      start_period: 10s
 
   test:
     build:
       context: .
       dockerfile: Dockerfile.test
-      platform: windows/amd64
-    environment:
-      - FLASK_ENV=testing
-      - PYTHONPATH=/app
-      - KEPLOY_MODE=test
     volumes:
       - ./backend:/app
-      - ./test_results:/app/test_results
+      - ./backend/test_results:/app/test_results
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=testing
+      - PYTHONUNBUFFERED=1
     depends_on:
       todo-api:
         condition: service_healthy
 
-  # Optional: Add a database service for production
-  # db:
-  #   image: postgres:13
-  #   environment:
-  #     POSTGRES_DB: todo_db
-  #     POSTGRES_USER: todo_user
-  #     POSTGRES_PASSWORD: todo_password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-
 volumes:
-  todo-db:
-  # postgres_data: 
+  todo-data:
+
+# Optional: Add a database service for production
+# db:
+#   image: postgres:13
+#   environment:
+#     POSTGRES_DB: todo_db
+#     POSTGRES_USER: todo_user
+#     POSTGRES_PASSWORD: todo_password
+#   volumes:
+#     - postgres_data:/var/lib/postgresql/data
+#   ports:
+#     - "5432:5432"
+
+# volumes:
+#   postgres_data: 

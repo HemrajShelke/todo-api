@@ -1,0 +1,54 @@
+# Basic CRUD Operations
+# List all todos
+curl -X GET http://127.0.0.1:5000/todos
+
+# Get a specific todo
+curl -X GET http://127.0.0.1:5000/todos/1
+
+# Create a new todo
+curl -X POST http://127.0.0.1:5000/todos \
+  -H "Content-Type: application/json" \
+  -d '{"task": "Test with Keploy", "completed": false}'
+
+# Update a todo
+curl -X PUT http://127.0.0.1:5000/todos/1 \
+  -H "Content-Type: application/json" \
+  -d '{"task": "Updated via Keploy", "completed": true}'
+
+# Delete a todo
+curl -X DELETE http://127.0.0.1:5000/todos/1
+
+# Error Cases
+# Get non-existent todo
+curl -X GET http://127.0.0.1:5000/todos/999
+
+# Create todo with missing task field
+curl -X POST http://127.0.0.1:5000/todos \
+  -H "Content-Type: application/json" \
+  -d '{"completed": false}'
+
+# Create todo with empty task
+curl -X POST http://127.0.0.1:5000/todos \
+  -H "Content-Type: application/json" \
+  -d '{"task": "", "completed": false}'
+
+# Update non-existent todo
+curl -X PUT http://127.0.0.1:5000/todos/999 \
+  -H "Content-Type: application/json" \
+  -d '{"task": "This should fail", "completed": true}'
+
+# Delete non-existent todo
+curl -X DELETE http://127.0.0.1:5000/todos/999
+
+# Batch Operations
+# Create multiple todos
+curl -X POST http://127.0.0.1:5000/todos \
+  -H "Content-Type: application/json" \
+  -d '{"task": "First task", "completed": false}'
+
+curl -X POST http://127.0.0.1:5000/todos \
+  -H "Content-Type: application/json" \
+  -d '{"task": "Second task", "completed": true}'
+
+# Get all todos to verify
+curl -X GET http://127.0.0.1:5000/todos 

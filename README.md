@@ -1,184 +1,251 @@
-# Todo List API Server
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen?logo=github)](CODE_OF_CONDUCT.md)
+[![Slack](.github/slack.svg)](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA)
 
-This project is a simple but powerful Todo List application featuring a Python Flask backend, an SQLite database, and a clean, functional frontend built with HTML, CSS, and JavaScript.
+# Keploy
+[Keploy](https://keploy.io) is a no-code testing platform that generates tests from API calls.
 
-## Tech Stack
 
-- **Backend:** Python, Flask, Flask-SQLAlchemy, Flask-CORS
-- **Database:** SQLite
-- **Frontend:** HTML, CSS, JavaScript
-- **Testing:** Pytest, Pytest-Cov, Keploy
+## Community support
+We'd love to collaborate with you to make Keploy great. To get started:
+* [Slack](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA) - Discussions with the community and the team.
+* [GitHub](https://github.com/keploy/keploy/issues) - For bug reports and feature requests.
+
+## Local Setup
+
+- Clone enterprise repository
+    ```
+        git clone https://github.com/keploy/enterprise.git
+    ```
+- Build the binary and move it
+    ```
+    go build -race -o keploy && mv ./keploy /usr/local/bin
+    ```
+- If your application is docker, build the keploy docker image
+    ```
+    docker image build --build-arg SERVER_URL=http://localhost:8081 -t ghcr.io/keploy/keploy:v2-dev .
+    ```
+
+- Use this prefix while running keploy if you are on linux
+    ```
+    sudo -E env PATH="$PATH" keploy
+    ```
+- By default the enterprise will connected to api-server running in your local environment.
+<br>
+
+- If you want to change it change the url in main.go file if you are application in non docker.
+    ```
+    	api_server_uri = "https://api.staging.keploy.io"
+    ```
+- If you are on docker use build args to change the url
+    ```
+    docker image build --build-arg SERVER_URL=https://api.staging.keploy.io -t ghcr.io/keploy/keploy:v2-dev .
+    ```
+
+## Staging Setup
+
+- Run the installation script
+    ```
+        curl --silent -O -L https://keploy.io/ent/install.sh && source install.sh $keploy_staging_version
+    ```
+
+## Prod Setup
+
+- Run the installation script
+    ```
+        curl --silent -O -L https://keploy.io/ent/install.sh && source install.sh
+    ```
+
+## How to do a staging release?
+
+- Do a normal release with tag - v*.\*.*-rc\*  eg:(v2.4.5-rc4)
+
+
+# Keploy Enterprise Features
+
+## Auto Test Generation
+
+### Prerequisite
+
+1) OpenAPI Schema file(format json) for the application for which the tests are to be generated.
+
+### Usage
+
+1) Generate tests using the following command
+
+```bash
+keploy generate-tests -c "java -jar /Users/charankamarapu/Desktop/whatsNew/samples-java/target/springbootapp-0.0.1-SNAPSHOT.jar" -s "/Users/charankamarapu/Desktop/whatsNew/samples-java/schema.json"
+```
+generate-tests supports all the flags related to the record command and ```-s``` is the flag which provides the schema file path to the test generation service.
+
+2) Generate tests with Parallelism using the following command
+
+```bash
+keploy generate-parallel --llm-api-version "2024-02-01" --llm-base-url "https://api.staging.keploy.io"
+```
+#### You can use --file for generating tests for specific file for ex:
+```bash
+keploy generate-parallel --llm-api-version "2024-02-01" --llm-base-url "https://api.staging.keploy.io" --file /home/dir/specific_file.go
+```
+
+#### You can use --file for generating tests for specific directory for ex:
+```bash
+keploy generate-parallel --llm-api-version "2024-02-01" --llm-base-url "https://api.staging.keploy.io" --dir /home/specific_dir/
+```
+
+## Keploy Deduplication
+
+### De-Duplication for JAVA Applications
+
+Deduplication works only on test mode there are no special instructions to record your tests.
+
+1) Put the latest keploy-sdk in your pom.xml file
+
+```xml
+<dependency>
+    <groupId>io.keploy</groupId>
+    <artifactId>keploy-sdk</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+```
+
+2) Add bean and import to your main class
+
+```java
+import io.keploy.servlet.KeployMiddleware;
+
+@Import(KeployMiddleware.class)
+public class SamplesJavaApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(SamplesJavaApplication.class, args);
+    }
+}
+```
+
+3) `sudo -E enterprise-server dedup -c "java -javaagent:<path-to-your-JacocoAgent>=address=*,port=36320,destfile=jacoco-it.exec,output=tcpserver -jar target/springbootapp-0.0.1-SNAPSHOT.jar"  --delay 10`
+
+4) `keploy dedup --rm "<test-set-name>"` to remove all the deduplication files
+
+
+### De-Duplication for Node Applications
+
+
+Deduplication works only on test mode there are no special instructions to record your tests.
+
+1) `npm i @keploy/sdk -g nyc`
+
+2) `require('@keploy/sdk/dist/v2/dedup/register')` on top of your server.js/app.js file
+
+3) `sudo -E enterprise-server dedup -c "<your command to run node server>"  --delay 10`
+
+4) (optional) `keploy dedup --rm "<test-set-name>"` to remove all the deduplication files
+
+### De-Duplication for Python Applications
+
+Deduplication works only on test mode there are no special instructions to record your tests.
+
+1) `pip install keploy`
+
+2) In your main app file add `from keploy import FastApiCoverageMiddleware` along with the other imports.
+
+3) Add Keploy's middleware along with the other middlewares for your app`app.add_middleware(FastApiCoverageMiddleware)`
+
+4) `sudo -E env PATH=$PATH keploy dedup -c "<command to run your Python app>" --delay <time required for your application to start>`
+
+5) Run `keploy dedup --rm "<test-set-name>"` to delete the duplicate testcases.
+
+# Todo API with Keploy Testing
+
+A RESTful API for managing todo items, built with Flask and tested using Keploy AI-powered API testing.
+
+## Test Results
+
+### Keploy Test Report
+
+```mermaid
+pie
+    title "Keploy API Test Results"
+    "Passed Tests (13)" : 13
+    "Failed Tests (4)" : 4
+```
+
+**Test Summary:**
+- Total Tests: 17
+- Passed: 13
+- Failed: 4
+- Success Rate: 76.5%
+
+**Endpoint Status:**
+| Endpoint | Method | Status | Result |
+|----------|--------|--------|--------|
+| /todos | GET | ✅ | PASSED |
+| /todos | POST | ✅ | PASSED |
+| /todos/{id} | GET | ❌ | FAILED (405) |
+| /todos/{id} | PUT | ✅ | PASSED |
+| /todos/{id} | DELETE | ✅ | PASSED |
+
+**Error Handling:**
+| Scenario | Status | Result |
+|----------|--------|--------|
+| Non-existent resource | ✅ | PASSED |
+| Invalid input data | ❌ | FAILED |
+| Method not allowed | ❌ | FAILED |
+
+## Features
+
+- CRUD operations for todo items
+- OpenAPI 3.0 specification
+- Automated API testing with Keploy
+- CI/CD integration with GitHub Actions
 
 ## API Documentation
 
-The API provides the following endpoints for managing todo items:
+The API is documented using OpenAPI 3.0 specification. You can find the complete schema in `openapi.yaml`.
 
-### Get All Todos
-- **Endpoint:** `/todos`
-- **Method:** `GET`
-- **Description:** Retrieves a list of all todo items.
-- **Success Response:** `200 OK`
-  ```json
-  [
-    {
-      "id": 1,
-      "task": "Learn about APIs",
-      "completed": true
-    },
-    {
-      "id": 2,
-      "task": "Build a project",
-      "completed": false
-    }
-  ]
-  ```
+### Endpoints
 
-### Add a New Todo
-- **Endpoint:** `/todos`
-- **Method:** `POST`
-- **Description:** Adds a new todo item to the list.
-- **Request Body:**
-  ```json
-  {
-    "task": "Write documentation"
-  }
-  ```
-- **Success Response:** `201 Created`
-  ```json
-  {
-    "id": 3,
-    "task": "Write documentation",
-    "completed": false
-  }
-  ```
+- `GET /todos` - List all todos
+- `POST /todos` - Create a new todo
+- `GET /todos/{id}` - Get a specific todo
+- `PUT /todos/{id}` - Update a todo
+- `DELETE /todos/{id}` - Delete a todo
 
-### Update a Todo
-- **Endpoint:** `/todos/<id>`
-- **Method:** `PUT`
-- **Description:** Updates an existing todo item's task or completion status.
-- **Request Body:**
-  ```json
-  {
-    "task": "Update the documentation",
-    "completed": true
-  }
-  ```
-- **Success Response:** `200 OK`
-  ```json
-  {
-    "id": 3,
-    "task": "Update the documentation",
-    "completed": true
-  }
-  ```
+## CI/CD Integration
 
-### Delete a Todo
-- **Endpoint:** `/todos/<id>`
-- **Method:** `DELETE`
-- **Description:** Deletes a specific todo item.
-- **Success Response:** `204 No Content`
+The project uses GitHub Actions for continuous integration and deployment. The workflow:
 
-## API Testing with Keploy
+1. Builds the application
+2. Runs Keploy tests
+3. Uploads test results
+4. Validates the API against OpenAPI schema
 
-We use [Keploy](https://keploy.io) for API testing. To run tests:
+### Latest Test Results
 
-1. Install Keploy from [official instructions](https://keploy.io/docs/installation/)
-2. Record tests: `./run_with_keploy_record.ps1`
-3. Run tests: `./run_with_keploy_test.ps1`
-
-### CI/CD Integration
-
-We've integrated Keploy tests into our GitHub Actions workflow. View the test reports in the Actions tab.
-
-![Keploy Test Report](link-to-screenshot)
+You can find the latest test results in the GitHub Actions tab or in the Keploy dashboard.
 
 ## Getting Started
 
-### Prerequisites
-- Python 3.x
-- pip
-
-### Installation & Setup
-
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repository-url>
-    cd todo-api/backend
-    ```
-
-2.  **Create and activate a virtual environment:**
-    ```bash
-    # For Windows
-    python -m venv venv
-    .\venv\Scripts\activate
-
-    # For macOS/Linux
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-4.  **Run the application:**
-    ```bash
-    python app.py
-    ```
-    The API server will be running at `http://127.0.0.1:5000`.
-
-## Testing
-
-This project uses `pytest` for comprehensive unit, integration, and API testing.
-
-### Running Tests
-
-From the `backend` directory, run the following command:
+1. Clone the repository:
 ```bash
-pytest
+git clone https://github.com/yourusername/todo-api.git
+cd todo-api
 ```
 
-### Test Coverage
-
-A test coverage of **93%** has been achieved, as detailed in the report below. The report was generated using `pytest-cov`.
-
-![Test Coverage Report](assets/coverage.png)
-
-**Coverage Breakdown:**
-
-| File   | Statements | Missing | Coverage |
-|--------|------------|---------|----------|
-| app.py | 43         | 3       | 93%      |
-| **Total**  | **43**     | **3**   | **93%**  |
-
-To generate an updated HTML report, run:
+2. Install dependencies:
 ```bash
-pytest --cov=app --cov-report html
+cd backend
+pip install -r requirements.txt
 ```
-Then, open `backend/htmlcov/index.html` in your browser.
 
-    python app.py
-    ```
-5.  The server will start on `http://127.0.0.1:5000`.
+3. Run the application:
+```bash
+python app.py
+```
 
-## How to Run the Frontend
+4. Run tests:
+```bash
+python test_api_with_keploy.py
+```
 
-1.  Navigate to the `frontend` directory.
-2.  Open the `index.html` file in your web browser.
+## License
 
-## How to Interact with the API
-
-You can interact with the API using the provided frontend or by sending requests with a tool like `curl`.
-
-**Example using `curl`:**
-
-- **Get all todos:**
-  ```bash
-  curl http://127.0.0.1:5000/todos
-  ```
-
-- **Add a new todo:**
-  ```bash
-  curl -X POST -H "Content-Type: application/json" -d '{"task":"Test with curl"}' http://127.0.0.1:5000/todos
-  ```
+MIT License - see LICENSE file for details

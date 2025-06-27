@@ -1,0 +1,51 @@
+version: api.keploy.io/v1beta1
+kind: config
+metadata:
+  name: todo-api-config
+  namespace: keploy
+spec:
+  app:
+    name: todo-api
+    port: 5000
+    host: "127.0.0.1"
+    delay: 5
+    timeout: 30
+    lang: python
+    command: python app.py
+  test:
+    path: ./keploy/tests
+    globalNoise:
+      global:
+        body: {
+          # Ignore timestamp variations
+          "timestamp": [],
+          "created_at": [],
+          "updated_at": []
+        }
+        header: {
+          # Ignore dynamic headers
+          "Date": [],
+          "Server": [],
+          "Content-Length": []
+        }
+    selectedTests: {}
+  record:
+    path: ./keploy/records
+    filters:
+      req:
+        header:
+          - "User-Agent"
+          - "Accept-Encoding"
+      resp:
+        header:
+          - "Server"
+          - "Date"
+  configPath: ""
+  bypassRules: []
+  cmdType: "native"
+  contract:
+    disable: false
+    path: "../openapi.yaml"
+
+mocks:
+  path: ./keploy/mocks
