@@ -27,17 +27,28 @@ jobs:
       run: |
         docker-compose build
         docker-compose up -d todo-api
-        docker-compose run --rm test pytest -v --cov=. --cov-report=xml --cov-report=html -n auto tests/
+        # Wait for services to be ready
+        sleep 15
+        # Run the test script directly since it has all our test cases
+        docker-compose run --rm test python test_api_with_keploy.py
         
     - name: Run Keploy Test Suite
+      if: env.KEPLOY_API_KEY != ''
+      env:
+        KEPLOY_API_KEY: ${{ secrets.KEPLOY_API_KEY }}
       run: |
-        docker-compose run --rm test bash -c "
-          export KEPLOY_API_KEY=${{ secrets.KEPLOY_API_KEY }} &&
-          keploy test-suite --app=9d09b06a-70f5-443d-871e-47134856f411 --base-path https://github.com/HemrajShelke/todo-api.git --cloud
-        "
+        if [ ! -z "$KEPLOY_API_KEY" ]; then
+          docker-compose run --rm test bash -c "
+            export KEPLOY_API_KEY=$KEPLOY_API_KEY &&
+            keploy test-suite --app=9d09b06a-70f5-443d-871e-47134856f411 --base-path https://github.com/HemrajShelke/todo-api.git --cloud
+          "
+        else
+          echo "⚠️ Skipping Keploy tests - API key not configured"
+        fi
         
     - name: Upload test coverage
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: test-coverage
         path: |
@@ -51,7 +62,11 @@ jobs:
         echo "✅ Code checkout completed"
         echo "✅ Docker environment setup"
         echo "✅ Tests executed in containers"
-        echo "✅ Keploy API tests executed"
+        if [ ! -z "$KEPLOY_API_KEY" ]; then
+          echo "✅ Keploy API tests executed"
+        else
+          echo "⚠️ Keploy tests skipped - API key not configured"
+        fi
         echo ""
         echo "📈 Artifacts uploaded for review"
         echo "🔗 Check the artifacts tab for detailed results"
