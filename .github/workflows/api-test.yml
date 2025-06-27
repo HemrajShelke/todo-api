@@ -1,0 +1,187 @@
+name: API Testing Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  FLASK_ENV: testing
+  FLASK_APP: backend/app.py
+  PORT: 5000
+  API_URL: http://localhost:5000
+
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install pytest pytest-cov requests
+
+    - name: Start Flask server
+      run: |
+        # Ensure instance directory exists
+        mkdir -p backend/instance
+        mkdir -p backend/instance/logs
+        
+        # Start Flask server in background
+        cd backend
+        python app.py &
+        echo $! > flask.pid
+        
+        # Wait for server to be ready
+        echo "Waiting for Flask server to be ready..."
+        for i in {1..30}; do
+          if curl -s http://localhost:$PORT/health > /dev/null; then
+            echo "Flask server is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Flask server failed to start"
+            echo "Server logs:"
+            cat instance/logs/flask.log || true
+            cat flask.pid | xargs kill -9 || true
+            exit 1
+          fi
+          sleep 2
+        done
+        cd ..
+
+    - name: Run API tests
+      run: |
+        # Run API tests and capture output
+        python test_api_with_keploy.py 2>&1 | tee api_test.log
+        
+        # Check if test results file exists and contains failures
+        if [ -f "test_results.json" ]; then
+          failed_count=$(jq '.failed' test_results.json)
+          if [ "$failed_count" -gt 0 ]; then
+            echo "API tests had $failed_count failures"
+            exit 1
+          fi
+        else
+          echo "No test results file found"
+          exit 1
+        fi
+
+    - name: Run integration tests
+      run: |
+        cd backend
+        pytest tests/test_app.py -v --cov=. --cov-report=html --cov-report=xml
+
+    - name: Run smoke tests
+      run: |
+        # Basic endpoint tests
+        echo "Testing /health endpoint..."
+        curl -f http://localhost:$PORT/health || exit 1
+        
+        echo "Testing /todos endpoint (GET)..."
+        curl -f http://localhost:$PORT/todos || exit 1
+        
+        echo "Testing /todos endpoint (POST)..."
+        curl -f -X POST -H "Content-Type: application/json" \
+          -d '{"task":"Smoke test task"}' \
+          http://localhost:$PORT/todos || exit 1
+
+    - name: Stop Flask server
+      if: always()
+      run: |
+        if [ -f backend/flask.pid ]; then
+          cat backend/flask.pid | xargs kill -9 || true
+        fi
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-test-results
+        path: |
+          backend/htmlcov/
+          backend/coverage.xml
+          api_test.log
+          test_results.json
+          backend/instance/logs/
+        retention-days: 7
+        if-no-files-found: warn
+
+    - name: Generate test report
+      if: always()
+      run: |
+        echo "## API Test Results Summary 📊" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### API Test Results" >> $GITHUB_STEP_SUMMARY
+        if [ -f "test_results.json" ]; then
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat test_results.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No API test results found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Integration Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        if [ -f "backend/.pytest_cache/v/cache/lastfailed" ]; then
+          echo "Failed tests:" >> $GITHUB_STEP_SUMMARY
+          cat backend/.pytest_cache/v/cache/lastfailed >> $GITHUB_STEP_SUMMARY
+        else
+          echo "All integration tests passed!" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage Report" >> $GITHUB_STEP_SUMMARY
+        if [ -f "backend/coverage.xml" ]; then
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat backend/coverage.xml | grep -E "line-rate|branch-rate" | head -1 >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No coverage report found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Server Logs" >> $GITHUB_STEP_SUMMARY
+        if [ -f "backend/instance/logs/flask.log" ]; then
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          tail -n 50 backend/instance/logs/flask.log >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No server logs found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Test summary
+      if: always()
+      run: |
+        echo "📊 API Testing Pipeline Summary:"
+        echo "=============================="
+        echo "✅ Code checkout completed"
+        echo "✅ Python environment setup"
+        if [ -f "test_results.json" ]; then
+          failed_count=$(jq '.failed' test_results.json)
+          passed_count=$(jq '.passed' test_results.json)
+          total_count=$(jq '.total_tests' test_results.json)
+          echo "API Tests: $passed_count/$total_count passed, $failed_count failed"
+        else
+          echo "❌ API tests failed to run"
+        fi
+        echo ""
+        echo "📈 Test results uploaded"
+        echo "🔗 Check artifacts for detailed reports" 
