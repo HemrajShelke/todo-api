@@ -1,0 +1,85 @@
+name: Comprehensive CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  DOCKER_BUILDKIT: 1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build and run tests
+      run: |
+        docker-compose build
+        docker-compose up -d todo-api
+        docker-compose run --rm test pytest -v --cov=. --cov-report=xml --cov-report=html -n auto tests/
+        
+    - name: Run Keploy Test Suite
+      run: |
+        docker-compose run --rm test bash -c "
+          export KEPLOY_API_KEY=${{ secrets.KEPLOY_API_KEY }} &&
+          keploy test-suite --app=9d09b06a-70f5-443d-871e-47134856f411 --base-path https://github.com/HemrajShelke/todo-api.git --cloud
+        "
+        
+    - name: Upload test coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-coverage
+        path: |
+          backend/test_results/
+        retention-days: 30
+        
+    - name: Test summary
+      run: |
+        echo "📊 CI/CD Pipeline Summary:"
+        echo "=========================="
+        echo "✅ Code checkout completed"
+        echo "✅ Docker environment setup"
+        echo "✅ Tests executed in containers"
+        echo "✅ Keploy API tests executed"
+        echo ""
+        echo "📈 Artifacts uploaded for review"
+        echo "🔗 Check the artifacts tab for detailed results"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build production image
+      run: docker build -t todo-api:prod .
+      
+    - name: Deploy summary
+      run: |
+        echo "🚀 Deployment Summary:"
+        echo "====================="
+        echo "✅ All tests passed"
+        echo "✅ Production image built"
+        echo ""
+        echo "📋 Next steps:"
+        echo "- Push image to container registry"
+        echo "- Deploy to staging/production"
+        echo "- Run health checks"
+        echo "- Monitor deployment"

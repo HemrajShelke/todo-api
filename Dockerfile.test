@@ -1,0 +1,47 @@
+# Use Python 3.11 slim image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_ENV=testing
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+        curl \
+        wget \
+        unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY backend/requirements.txt .
+
+# Install Python dependencies including test dependencies
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir pytest pytest-cov pytest-xdist requests
+
+# Install Keploy
+RUN curl -O https://raw.githubusercontent.com/keploy/keploy/main/keploy.sh \
+    && chmod +x keploy.sh \
+    && ./keploy.sh
+
+# Copy test files
+COPY backend/ .
+COPY test_api_with_keploy.py .
+
+# Create test results directory
+RUN mkdir -p /app/test_results
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
+USER app
+
+# Default command to run tests
+CMD ["pytest", "-v", "--cov=.", "--cov-report=html:/app/test_results/coverage", "--cov-report=xml:/app/test_results/coverage.xml", "-n", "auto", "tests/"] 
